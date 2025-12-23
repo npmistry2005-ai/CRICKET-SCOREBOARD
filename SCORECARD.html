@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cricket Scoreboard & Tournament</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+    }
+    header {
+      background: #006400;
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .container {
+      padding: 15px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      padding: 10px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
+    }
+    label {
+      display: block;
+      margin: 5px 0 2px;
+      font-size: 13px;
+    }
+    input, select, button {
+      padding: 5px;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+    button {
+      cursor: pointer;
+      border-radius: 3px;
+      border: none;
+      background: #006400;
+      color: #fff;
+    }
+    button.secondary {
+      background: #555;
+    }
+    button.danger {
+      background: #b22222;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    th {
+      background: #eee;
+    }
+    .score-big {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .sub {
+      font-size: 12px;
+      color: #555;
+    }
+    .flex {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .flex > div {
+      flex: 1;
+      min-width: 120px;
+    }
+    .radio-group label {
+      display: inline-block;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Cricket Scoreboard & Tournament Manager</h1>
+  <div>
+    <span>Controlled view for scorer; read‑only for audience.</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Tournament setup -->
+  <div class="row">
+    <div class="card">
+      <h2>Tournament Setup</h2>
+      <label>Tournament name</label>
+      <input type="text" id="tournamentName" placeholder="e.g. College Premier League" />
+
+      <label>Teams (comma separated)</label>
+      <input type="text" id="teamList" placeholder="Team A, Team B, Team C, Team D" />
+
+      <label>Overs per innings</label>
+      <input type="number" id="oversPerInnings" value="20" min="1" />
+
+      <button onclick="createTournament()">Create / Reset Tournament</button>
+    </div>
+
+    <!-- Match selection/creation -->
+    <div class="card">
+      <h2>Match Setup</h2>
+      <label>Select match</label>
+      <select id="matchSelect" onchange="loadMatchFromSelect()">
+        <option value="">No match selected</option>
+      </select>
+
+      <hr />
+
+      <div class="flex">
+        <div>
+          <label>Team 1</label>
+          <select id="team1Select"></select>
+        </div>
+        <div>
+          <label>Team 2</label>
+          <select id="team2Select"></select>
+        </div>
+      </div>
+
+      <label>Venue</label>
+      <input type="text" id="venue" placeholder="e.g. Mumbai" />
+
+      <label>Toss winner</label>
+      <select id="tossWinner"></select>
+
+      <div class="radio-group">
+        <label><input type="radio" name="tossDecision" value="bat" checked /> Bat</label>
+        <label><input type="radio" name="tossDecision" value="bowl" /> Bowl</label>
+      </div>
+
+      <button onclick="createMatch()">Create New Match</button>
+    </div>
+  </div>
+
+  <!-- Live scoreboard -->
+  <div class="row">
+    <div class="card">
+      <h2>Live Scoreboard</h2>
+      <div id="liveMatchInfo" class="sub"></div>
+      <div id="inningsInfo" class="sub"></div>
+      <div id="liveScore" class="score-big">0/0</div>
+      <div id="overInfo" class="sub">Overs: 0.0</div>
+      <div id="currentPartnership" class="sub"></div>
+      <div id="targetInfo" class="sub"></div>
+    </div>
+
+    <!-- Ball-by-ball controls -->
+    <div class="card">
+      <h2>Ball Controls (Scorer only)</h2>
+
+      <div class="flex">
+        <div>
+          <label>Striker name</label>
+          <input type="text" id="strikerName" placeholder="Striker" />
+        </div>
+        <div>
+          <label>Non‑striker name</label>
+          <input type="text" id="nonStrikerName" placeholder="Non‑striker" />
+        </div>
+        <div>
+          <label>Bowler name</label>
+          <input type="text" id="bowlerName" placeholder="Bowler" />
+        </div>
+      </div>
+
+      <label>This ball outcome</label>
+      <div class="flex">
+        <div>
+          <label>Runs (off bat)</label>
+          <select id="runsSelect">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="6">6</option>
+          </select>
+        </div>
+        <div>
+          <label>Extras</label>
+          <select id="extrasType">
+            <option value="none">None</option>
+            <option value="wide">Wide</option>
+            <option value="nb">No ball</option>
+            <option value="b">Byes</option>
+            <option value="lb">Leg byes</option>
+          </select>
+        </div>
+        <div>
+          <label>Runs as extras</label>
+          <input type="number" id="extrasRuns" value="0" min="0" />
+        </div>
+      </div>
+
+      <div class="radio-group">
+        <label><input type="radio" name="dismissal" value="none" checked /> No wicket</label>
+        <label><input type="radio" name="dismissal" value="bowled" /> Bowled</label>
+        <label><input type="radio" name="dismissal" value="caught" /> Caught</label>
+        <label><input type="radio" name="dismissal" value="runout" /> Run out</label>
+      </div>
+
+      <button onclick="addBall()">Add Ball</button>
+      <button class="secondary" onclick="endOver()">End Over</button>
+      <button class="danger" onclick="endInnings()">End Innings</button>
+      <button class="danger" onclick="endMatch()">End Match</button>
+    </div>
+  </div>
+
+  <!-- Scorecards + Man of the Match -->
+  <div class="row">
+    <div class="card">
+      <h2>Batting Scorecard</h2>
+      <table id="battingTable">
+        <thead>
+          <tr>
+            <th>Batsman</th>
+            <th>R</th>
+            <th>B</th>
+            <th>4s</th>
+            <th>6s</th>
+            <th>SR</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Bowling Scorecard</h2>
+      <table id="bowlingTable">
+        <thead>
+          <tr>
+            <th>Bowler</th>
+            <th>O</th>
+            <th>M</th>
+            <th>R</th>
+            <th>W</th>
+            <th>Econ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Man of the Match</h2>
+      <p class="sub">
+        Simple performance index: batting points + bowling points.
+        You can also override and pick manually.
+      </p>
+
+      <button onclick="calculateMOM()">Calculate Suggested Man of the Match</button>
+      <p id="momSuggestion" class="sub"></p>
+
+      <label>Manual Man of the Match</label>
+      <input type="text" id="momManual" placeholder="Enter player name" />
+      <button onclick="setManualMOM()">Set Man of the Match</button>
+      <p id="momFinal" class="sub"></p>
+    </div>
+  </div>
+
+  <!-- Points table -->
+  <div class="row">
+    <div class="card">
+      <h2>Tournament Points Table</h2>
+      <table id="pointsTable">
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>M</th>
+            <th>W</th>
+            <th>L</th>
+            <th>T</th>
+            <th>NRR</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="sub">
+        NRR = (total runs scored / overs faced) − (total runs conceded / overs bowled). [Standard tournament formula]
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ===== Data structures =====
+  let tournament = {
+    name: "",
+    teams: [],
+    oversPerInnings: 20,
+    points: {}, // team -> stats
+    matches: [] // each match object
+  };
+
+  let currentMatch = null; // reference to match object
+
+  // Match structure:
+  // {
+  //   id, team1, team2, venue, tossWinner, tossDecision, oversPerInnings,
+  //   innings: [inn1, inn2],
+  //   result: { winner, margin, mom }
+  // }
+
+  function emptyInnings(battingTeam, bowlingTeam) {
+    return {
+      battingTeam,
+      bowlingTeam,
+      runs: 0,
+      wickets: 0,
+      overs: 0,
+      ballsInOver: 0,
+      target: null,
+      extras: 0,
+      balls: [],
+      battingStats: {}, // name -> {runs, balls, fours, sixes}
+      bowlingStats: {}  // name -> {balls, runs, wickets}
+    };
+  }
+
+  // ===== Tournament creation =====
+  function createTournament() {
+    const name = document.getElementById("tournamentName").value.trim();
+    const teamText = document.getElementById("teamList").value.trim();
+    const overs = parseInt(document.getElementById("oversPerInnings").value, 10);
+
+    if (!name || !teamText) {
+      alert("Enter tournament name and team list.");
+      return;
+    }
+
+    const teams = teamText.split(",").map(t => t.trim()).filter(t => t);
+    if (teams.length < 2) {
+      alert("At least 2 teams required.");
+      return;
+    }
+
+    tournament.name = name;
+    tournament.teams = teams;
+    tournament.oversPerInnings = overs > 0 ? overs : 20;
+    tournament.matches = [];
+    tournament.points = {};
+
+    teams.forEach(team => {
+      tournament.points[team] = {
+        matches: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        runsFor: 0,
+        oversFor: 0,
+        runsAgainst: 0,
+        oversAgainst: 0,
+        points: 0
+      };
+    });
+
+    // Populate team selects
+    const team1Sel = document.getElementById("team1Select");
+    const team2Sel = document.getElementById("team2Select");
+    const tossSel = document.getElementById("tossWinner");
+
+    [team1Sel, team2Sel, tossSel].forEach(sel => {
+      sel.innerHTML = "";
+      teams.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        sel.appendChild(opt);
+      });
+    });
+
+    // Clear matches dropdown
+    document.getElementById("matchSelect").innerHTML =
+      '<option value="">No match selected</option>';
+
+    currentMatch = null;
+    updateLiveView();
+    renderPointsTable();
+
+    alert("Tournament created.");
+  }
+
+  // ===== Match creation/loading =====
+  function createMatch() {
+    if (!tournament.teams || tournament.teams.length < 2) {
+      alert("Create a tournament first.");
+      return;
+    }
+
+    const t1 = document.getElementById("team1Select").value;
+    const t2 = document.getElementById("team2Select").value;
+    const venue = document.getElementById("venue").value.trim();
+    const tossWinner = document.getElementById("tossWinner").value;
+    const tossDecision = document.querySelector("input[name='tossDecision']:checked").value;
+
+    if (!t1 || !t2 || t1 === t2) {
+      alert("Choose two different teams.");
+      return;
+    }
+
+    const match = {
+      id: "M" + (tournament.matches.length + 1),
+      team1: t1,
+      team2: t2,
+      venue: venue || "",
+      tossWinner,
+      tossDecision, // bat/bowl
+      oversPerInnings: tournament.oversPerInnings,
+      innings: [],
+      result: null
+    };
+
+    // Determine first batting team
+    let firstBatting;
+    if (tossDecision === "bat") {
+      firstBatting = tossWinner;
+    } else {
+      firstBatting = tossWinner === t1 ? t2 : t1;
+    }
+    const firstBowling = firstBatting === t1 ? t2 : t1;
+
+    match.innings[0] = emptyInnings(firstBatting, firstBowling);
+    match.innings[1] = emptyInnings(firstBowling, firstBatting);
+
+    tournament.matches.push(match);
+    currentMatch = match;
+
+    refreshMatchSelect();
+    document.getElementById("matchSelect").value = match.id;
+
+    resetBallControls();
+    updateLiveView();
+    alert("Match created: " + match.id);
+  }
+
+  function refreshMatchSelect() {
+    const sel = document.getElementById("matchSelect");
+    sel.innerHTML = '<option value="">No match selected</option>';
+    tournament.matches.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = `${m.id}: ${m.team1} vs ${m.team2}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  function loadMatchFromSelect() {
+    const id = document.getElementById("matchSelect").value;
+    if (!id) {
+      currentMatch = null;
+    } else {
+      currentMatch = tournament.matches.find(m => m.id === id);
+    }
+    resetBallControls();
+    updateLiveView();
+  }
+
+  // ===== Ball-by-ball update =====
+  function getCurrentInnings() {
+    if (!currentMatch) return null;
+    // If first innings completed, use second
+    if (currentMatch.innings[0].overs === currentMatch.oversPerInnings ||
+        currentMatch.innings[0].wickets === 10 ||
+        currentMatch.innings[0].target !== null && currentMatch.innings[1].runs >= currentMatch.innings[0].runs + 1) {
+      return currentMatch.innings[1];
+    }
+    return currentMatch.innings[0];
+  }
+
+  function addBall() {
+    if (!currentMatch) {
+      alert("No active match.");
+      return;
+    }
+    const inn = getCurrentInnings();
+    if (!inn) return;
+
+    if (inn.overs >= currentMatch.oversPerInnings || inn.wickets >= 10) {
+      alert("Innings complete. End innings or end match.");
+      return;
+    }
+
+    const striker = document.getElementById("strikerName").value.trim() || "Striker";
+    const nonStriker = document.getElementById("nonStrikerName").value.trim() || "Non‑striker";
+    const bowler = document.getElementById("bowlerName").value.trim() || "Bowler";
+
+    const runsOffBat = parseInt(document.getElementById("runsSelect").value, 10);
+    const extrasType = document.getElementById("extrasType").value;
+    const extrasRuns = parseInt(document.getElementById("extrasRuns").value || "0", 10);
+    const dismissal = document.querySelector("input[name='dismissal']:checked").value;
+
+    let totalRuns = runsOffBat + (extrasType === "none" ? 0 : extrasRuns);
+    let legalBall = true;
+
+    if (extrasType === "wide" || extrasType === "nb") {
+      legalBall = false; // does not count as ball in over
+    }
+
+    // Update innings totals
+    inn.runs += totalRuns;
+    inn.extras += (extrasType === "none" ? 0 : extrasRuns);
+
+    // Update batting stats
+    if (!inn.battingStats[striker]) {
+      inn.battingStats[striker] = { runs: 0, balls: 0, fours: 0, sixes: 0 };
+    }
+    if (legalBall) {
+      inn.battingStats[striker].balls += 1;
+    }
+    inn.battingStats[striker].runs += runsOffBat;
+    if (runsOffBat === 4) inn.battingStats[striker].fours += 1;
+    if (runsOffBat === 6) inn.battingStats[striker].sixes += 1;
+
+    // Update bowling stats
+    if (!inn.bowlingStats[bowler]) {
+      inn.bowlingStats[bowler] = { balls: 0, runs: 0, wickets: 0, maidens: 0, runsThisOver: 0 };
+    }
+    inn.bowlingStats[bowler].runs += totalRuns;
+    if (legalBall) {
+      inn.bowlingStats[bowler].balls += 1;
+      inn.bowlingStats[bowler].runsThisOver += totalRuns;
+    }
+
+    // Wicket
+    if (dismissal !== "none" && legalBall) {
+      inn.wickets += 1;
+      inn.bowlingStats[bowler].wickets += 1;
+    }
+
+    // Over/ball count
+    if (legalBall) {
+      inn.ballsInOver += 1;
+      if (inn.ballsInOver === 6) {
+        inn.overs += 1;
+        inn.ballsInOver = 0;
+        // Check maiden
+        if (inn.bowlingStats[bowler].runsThisOver === 0) {
+          inn.bowlingStats[bowler].maidens += 1;
+        }
+        inn.bowlingStats[bowler].runsThisOver = 0;
+      }
+    }
+
+    inn.balls.push({
+      striker,
+      nonStriker,
+      bowler,
+      runsOffBat,
+      extrasType,
+      extrasRuns,
+      dismissal,
+      legalBall
+    });
+
+    // Simple strike rotation for odd runs
+    if (legalBall && (runsOffBat + (extrasType === "b" || extrasType === "lb" ? extrasRuns : 0)) % 2 === 1) {
+      // swap striker/non striker on UI only
+      document.getElementById("strikerName").value = nonStriker;
+      document.getElementById("nonStrikerName").value = striker;
+    }
+
+    updateLiveView();
+  }
+
+  function endOver() {
+    const inn = getCurrentInnings();
+    if (!inn) return;
+    // Just force over end
+    if (inn.ballsInOver > 0) {
+      inn.overs += 1;
+      inn.ballsInOver = 0;
+    }
+    updateLiveView();
+  }
+
+  function endInnings() {
+    if (!currentMatch) return;
+    const inn = getCurrentInnings();
+    if (!inn) return;
+
+    // Complete current over if partial
+    if (inn.ballsInOver > 0) {
+      inn.overs += 1;
+      inn.ballsInOver = 0;
+    }
+
+    // If first innings, set target
+    if (inn === currentMatch.innings[0]) {
+      currentMatch.innings[1].target = inn.runs + 1;
+    }
+    updateLiveView();
+  }
+
+  function endMatch() {
+    if (!currentMatch) return;
+    // Make sure both innings overs counted correctly
+    currentMatch.innings.forEach(inn => {
+      if (inn.ballsInOver > 0) {
+        inn.overs += 1;
+        inn.ballsInOver = 0;
+      }
+    });
+
+    const inn1 = currentMatch.innings[0];
+    const inn2 = currentMatch.innings[1];
+
+    let winner = null;
+    let margin = "";
+    if (inn1.runs > inn2.runs) {
+      winner = inn1.battingTeam;
+      margin = (inn1.runs - inn2.runs) + " runs";
+    } else if (inn2.runs > inn1.runs) {
+      winner = inn2.battingTeam;
+      const wktsLeft = 10 - inn2.wickets;
+      margin = wktsLeft + " wickets";
+    } else {
+      winner = "Tie";
+      margin = "Scores level";
+    }
+
+    currentMatch.result = {
+      winner,
+      margin,
+      mom: null
+    };
+
+    updatePointsTableForMatch(currentMatch);
+    renderPointsTable();
+    updateLiveView();
+
+    alert("Match ended. Result: " + winner + " (" + margin + ")");
+  }
+
+  function resetBallControls() {
+    document.getElementById("runsSelect").value = "0";
+    document.getElementById("extrasType").value = "none";
+    document.getElementById("extrasRuns").value = "0";
+    document.querySelector("input[name='dismissal'][value='none']").checked = true;
+  }
+
+  // ===== Live view render =====
+  function updateLiveView() {
+    const liveMatchInfo = document.getElementById("liveMatchInfo");
+    const inningsInfo = document.getElementById("inningsInfo");
+    const liveScore = document.getElementById("liveScore");
+    const overInfo = document.getElementById("overInfo");
+    const targetInfo = document.getElementById("targetInfo");
+
+    if (!currentMatch) {
+      liveMatchInfo.textContent = "No match selected.";
+      inningsInfo.textContent = "";
+      liveScore.textContent = "0/0";
+      overInfo.textContent = "Overs: 0.0";
+      targetInfo.textContent = "";
+      renderBattingTable(null);
+      renderBowlingTable(null);
+      return;
+    }
+
+    const inn = getCurrentInnings() || currentMatch.innings[1];
+    const idx = inn === currentMatch.innings[0] ? 1 : 2;
+
+    liveMatchInfo.textContent =
+      currentMatch.team1 + " vs " + currentMatch.team2 +
+      (currentMatch.venue ? " at " + currentMatch.venue : "");
+
+    inningsInfo.textContent =
+      "Innings " + idx + ": " + inn.battingTeam + " batting vs " + inn.bowlingTeam;
+
+    const ballsFraction = inn.ballsInOver;
+    liveScore.textContent = inn.runs + "/" + inn.wickets;
+    overInfo.textContent = "Overs: " + inn.overs + "." + ballsFraction;
+
+    if (inn.target) {
+      const runsNeeded = inn.target - inn.runs;
+      if (runsNeeded > 0) {
+        targetInfo.textContent =
+          "Target: " + inn.target + " | " +
+          runsNeeded + " runs required";
+      } else {
+        targetInfo.textContent = "Target chased successfully.";
+      }
+    } else if (currentMatch.innings[0].overs > 0 || currentMatch.innings[0].runs > 0) {
+      targetInfo.textContent = "Target will be " + (currentMatch.innings[0].runs + 1);
+    } else {
+      targetInfo.textContent = "";
+    }
+
+    renderBattingTable(inn);
+    renderBowlingTable(inn);
+  }
+
+  function renderBattingTable(inn) {
+    const tbody = document.querySelector("#battingTable tbody");
+    tbody.innerHTML = "";
+
+    if (!inn) return;
+
+    Object.keys(inn.battingStats).forEach(name => {
+      const s = inn.battingStats[name];
+      const tr = document.createElement("tr");
+      const sr = s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(1) : "-";
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${s.runs}</td>
+        <td>${s.balls}</td>
+        <td>${s.fours}</td>
+        <td>${s.sixes}</td>
+        <td>${sr}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderBowlingTable(inn) {
+    const tbody = document.querySelector("#bowlingTable tbody");
+    tbody.innerHTML = "";
+
+    if (!inn) return;
+
+    Object.keys(inn.bowlingStats).forEach(name => {
+      const b = inn.bowlingStats[name];
+      const overs = Math.floor(b.balls / 6) + "." + (b.balls % 6);
+      const econ = b.balls > 0 ? ((b.runs * 6) / b.balls).toFixed(1) : "-";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${overs}</td>
+        <td>${b.maidens || 0}</td>
+        <td>${b.runs}</td>
+        <td>${b.wickets}</td>
+        <td>${econ}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Points table & NRR =====
+  function updatePointsTableForMatch(match) {
+    const inn1 = match.innings[0];
+    const inn2 = match.innings[1];
+
+    const t1 = match.team1;
+    const t2 = match.team2;
+
+    const p1 = tournament.points[t1];
+    const p2 = tournament.points[t2];
+
+    p1.matches += 1;
+    p2.matches += 1;
+
+    // Convert overs to decimal for NRR (e.g. 17.3 overs = 17 + 3/6)
+    function oversToDecimal(overs) {
+      const o = Math.floor(overs);
+      const b = Math.round((overs - o) * 10); // balls in .x
+      return o + b / 6;
+    }
+
+    const inn1Overs = oversToDecimal(inn1.overs);
+    const inn2Overs = oversToDecimal(inn2.overs);
+
+    // Team batting order may not match team1/team2; map correctly
+    function addTeamStats(teamName, runsScored, oversFaced, runsConceded, oversBowled) {
+      const p = tournament.points[teamName];
+      p.runsFor += runsScored;
+      p.oversFor += oversFaced;
+      p.runsAgainst += runsConceded;
+      p.oversAgainst += oversBowled;
+    }
+
+    addTeamStats(inn1.battingTeam, inn1.runs, inn1Overs, inn2.runs, inn2Overs);
+    addTeamStats(inn2.battingTeam, inn2.runs, inn2Overs, inn1.runs, inn1Overs);
+
+    if (match.result.winner === "Tie") {
+      p1.ties += 1;
+      p2.ties += 1;
+      p1.points += 1;
+      p2.points += 1;
+    } else {
+      const winner = match.result.winner;
+      const loser = winner === t1 ? t2 : t1;
+      const pw = tournament.points[winner];
+      const pl = tournament.points[loser];
+      pw.wins += 1;
+      pw.points += 2;
+      pl.losses += 1;
+    }
+  }
+
+  function calculateNRR(p) {
+    const rrFor = p.oversFor > 0 ? p.runsFor / p.oversFor : 0;
+    const rrAgainst = p.oversAgainst > 0 ? p.runsAgainst / p.oversAgainst : 0;
+    return rrFor - rrAgainst;
+  }
+
+  function renderPointsTable() {
+    const tbody = document.querySelector("#pointsTable tbody");
+    tbody.innerHTML = "";
+
+    const rows = Object.keys(tournament.points).map(team => {
+      const p = tournament.points[team];
+      return {
+        team,
+        ...p,
+        nrr: calculateNRR(p)
+      };
+    });
+
+    rows.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      return b.nrr - a.nrr;
+    });
+
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.team}</td>
+        <td>${r.matches}</td>
+        <td>${r.wins}</td>
+        <td>${r.losses}</td>
+        <td>${r.ties}</td>
+        <td>${r.nrr.toFixed(3)}</td>
+        <td>${r.points}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== Man of the Match =====
+  function calculateMOM() {
+    if (!currentMatch) {
+      alert("No match selected.");
+      return;
+    }
+
+    const allPerf = {}; // name -> score
+
+    function addBatting(inn) {
+      Object.keys(inn.battingStats).forEach(name => {
+        const s = inn.battingStats[name];
+        const score = s.runs + s.fours * 1 + s.sixes * 2; // simple weighting
+        allPerf[name] = (allPerf[name] || 0) + score;
+      });
+    }
+
+    function addBowling(inn) {
+      Object.keys(inn.bowlingStats).forEach(name => {
+        const b = inn.bowlingStats[name];
+        const score = b.wickets * 20 - b.runs; // wickets reward, runs conceded penalty
+        allPerf[name] = (allPerf[name] || 0) + score;
+      });
+    }
+
+    currentMatch.innings.forEach(inn => {
+      addBatting(inn);
+      addBowling(inn);
+    });
+
+    let bestPlayer = null;
+    let bestScore = -Infinity;
+    Object.keys(allPerf).forEach(name => {
+      if (allPerf[name] > bestScore) {
+        bestScore = allPerf[name];
+        bestPlayer = name;
+      }
+    });
+
+    if (bestPlayer) {
+      document.getElementById("momSuggestion").textContent =
+        "Suggested Man of the Match: " + bestPlayer + " (performance score " + bestScore + ")";
+    } else {
+      document.getElementById("momSuggestion").textContent =
+        "No performance data available.";
+    }
+  }
+
+  function setManualMOM() {
+    if (!currentMatch) return;
+    const name = document.getElementById("momManual").value.trim();
+    if (!name) {
+      alert("Enter player name.");
+      return;
+    }
+    currentMatch.result = currentMatch.result || {};
+    currentMatch.result.mom = name;
+    document.getElementById("momFinal").textContent =
+      "Man of the Match: " + name;
+  }
+</script>
+
+</body>
+</html>
